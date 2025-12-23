@@ -1,3 +1,4 @@
+// src/app.js (UPDATED)
 'use strict';
 
 require('dotenv').config();
@@ -17,6 +18,8 @@ const transactionRoutes = require('./routes/transactions');
 const marketRoutes = require('./routes/market');
 const alertRoutes = require('./routes/alerts');
 const authDemoRoutes = require('./routes/authDemo');
+const stockRoutes = require('./routes/stocks');
+const stocksDemoRoutes = require('./routes/stocksDemo');
 
 // Error handling middlewares
 const { errorHandler, notFound } = require('./middlewares/error');
@@ -30,29 +33,29 @@ connectDB();
 
 // Setup Session Management with MongoDB Store
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'supersecret',  // Always use a strong session secret
+  secret: process.env.SESSION_SECRET || 'supersecret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/finsight' }), // MongoDB URI from env
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/finsight' }),
   cookie: {
-    maxAge: 1000 * 60 * 60, // Session lasts for 1 hour
-    secure: false, // Set to true if using HTTPS
+    maxAge: 1000 * 60 * 60, // 1 hour
+    secure: false,
     httpOnly: true
   }
 }));
 
 // Middleware setup
-app.use(helmet());         // Security middleware
-app.use(cors());           // Enable CORS
-app.use(express.json());   // Parse JSON body
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
-app.use(morgan('dev'));    // Logger
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
-// Static file serving from the 'public' directory
+// Static file serving
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Set EJS as the view engine
-app.set('views', path.join(__dirname, '..', 'views')); // Ensure the correct path
+app.set('views', path.join(__dirname, '..', 'views'));
 app.set('view engine', 'ejs');
 
 // Simple home route
@@ -70,9 +73,11 @@ app.use('/api/portfolios', portfolioRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/stocks', stockRoutes);
 
-// Demo Authentication Routes
+// Demo routes
 app.use('/demo', authDemoRoutes);
+app.use('/stocks', stocksDemoRoutes);
 
 // Error handling middleware
 app.use(notFound);
@@ -82,6 +87,7 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
   console.log(`Visit http://localhost:${PORT} to access the application`);
+  console.log(`Stock Market: http://localhost:${PORT}/stocks/market`);
 });
 
 module.exports = app;

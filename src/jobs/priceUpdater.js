@@ -1,29 +1,9 @@
+// src/jobs/priceUpdater.js (UPDATED)
 require('dotenv').config();
 const cron = require('node-cron');
-const axios = require('axios');
-const MarketPrice = require('../models/MarketPrice');
+const StockPriceService = require('../services/stockPriceService');
 const Alert = require('../models/Alert');
-
-// simple mock fetcher - replace with real provider if available
-async function fetchPrice(symbol) {
-  // For demo: random price around 100
-  const price = +(80 + Math.random() * 40).toFixed(2);
-  return { symbol: symbol.toUpperCase(), price, timestamp: new Date() };
-}
-
-async function updatePricesForSymbols(symbols) {
-  const results = [];
-  for (const s of symbols) {
-    const p = await fetchPrice(s);
-    const doc = await MarketPrice.findOneAndUpdate(
-      { symbol: p.symbol },
-      { price: p.price, timestamp: p.timestamp },
-      { upsert: true, new: true }
-    );
-    results.push(doc);
-  }
-  return results;
-}
+const MarketPrice = require('../models/MarketPrice');
 
 async function checkAlerts() {
   const alerts = await Alert.find({ triggered: false });
@@ -43,21 +23,20 @@ async function checkAlerts() {
 }
 
 async function runOnce() {
-  // gather all symbols from alerts and transactions (simplified: use alerts only)
-  const alerts = await Alert.find({});
-  const symbols = Array.from(new Set(alerts.map(a => a.symbol)));
-  if (!symbols.length) {
-    console.log('No symbols to update');
-    return;
-  }
-  await updatePricesForSymbols(symbols);
+  console.log('Updating stock prices...');
+  await StockPriceService.updateStockPrices();
   await checkAlerts();
+  console.log('Price update complete');
 }
 
 async function start() {
-  // schedule based on env or default every minute
-  const cronExp = process.env.PRICE_UPDATE_CRON || '*/1 * * * *';
+  // Run every 30 seconds for more realistic updates
+  const cronExp = process.env.PRICE_UPDATE_CRON || '*/30 * * * * *';
   console.log('Starting price updater with cron:', cronExp);
+  
+  // Run once immediately
+  await runOnce();
+  
   cron.schedule(cronExp, async () => {
     try {
       await runOnce();
@@ -71,9 +50,14 @@ async function start() {
 if (require.main === module) {
   const mongoose = require('mongoose');
   const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/finsight';
-  mongoose.connect(uri).then(() => {
+  mongoose.connect(uri).then(async () => {
     console.log('Price updater connected to DB');
-    start();
+    
+    // Seed stock data if needed
+    await StockPriceService.seedStockData();
+    
+    // Start the updater
+    await start();
   }).catch(err => {
     console.error('Price updater DB connect failed', err);
   });

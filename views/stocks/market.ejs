@@ -1,0 +1,376 @@
+<!-- views/stocks/market.ejs -->
+<%- include('../layouts/header') %>
+
+<!-- Market Header -->
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2;">
+        <div>
+            <h1 style="margin: 0; font-size: 2em; display: flex; align-items: center;">
+                <span style="margin-right: 15px;">📊</span>
+                Stock Market
+            </h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1em;">
+                Browse and trade stocks in real-time
+            </p>
+        </div>
+        
+        <div style="text-align: right;">
+            <a href="/demo/dashboard" style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; text-decoration: none; border-radius: 20px; margin-right: 10px;">← Dashboard</a>
+            <a href="/demo/logout" style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; text-decoration: none; border-radius: 20px;">Logout</a>
+        </div>
+    </div>
+</div>
+
+<!-- Market Stats & Trending -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px; margin-bottom: 30px;">
+    
+    <!-- Search and Filters -->
+    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 20px 0; color: #2c3e50; display: flex; align-items: center;">
+            <span style="margin-right: 10px;">🔍</span>
+            Search Stocks
+        </h3>
+        
+        <form action="/stocks/market" method="GET" style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <input type="text" 
+                   name="search" 
+                   value="<%= search %>" 
+                   placeholder="Search by symbol or name..."
+                   style="flex: 1; min-width: 250px; padding: 12px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">
+            
+            <select name="sector" 
+                    style="padding: 12px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; min-width: 180px;">
+                <option value="">All Sectors</option>
+                <% sectors.forEach(s => { %>
+                    <option value="<%= s %>" <%= sector === s ? 'selected' : '' %>><%= s %></option>
+                <% }) %>
+            </select>
+            
+            <button type="submit" 
+                    style="background: linear-gradient(135deg, #2196F3, #1976D2); color: white; padding: 12px 30px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                Search
+            </button>
+            
+            <% if (search || sector) { %>
+                <a href="/stocks/market" 
+                   style="padding: 12px 20px; background: #e0e0e0; color: #666; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                    Clear
+                </a>
+            <% } %>
+        </form>
+    </div>
+    
+    <!-- Trending Stocks -->
+    <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <h3 style="margin: 0 0 15px 0; color: #2c3e50; display: flex; align-items: center;">
+            <span style="margin-right: 10px;">🔥</span>
+            Trending
+        </h3>
+        
+        <% trending.forEach(stock => { %>
+            <a href="/stocks/stock/<%= stock.symbol %>" 
+               style="display: flex; justify-content: space-between; align-items: center; padding: 10px; text-decoration: none; color: inherit; border-radius: 6px; margin-bottom: 8px; transition: background 0.2s;"
+               onmouseover="this.style.background='#f8f9fa'" 
+               onmouseout="this.style.background='white'">
+                <div>
+                    <strong style="color: #2c3e50;"><%= stock.symbol %></strong>
+                    <div style="font-size: 0.85em; color: #666;"><%= stock.name.substring(0, 20) %>...</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 600; color: #2c3e50;">$<%= stock.currentPrice.toFixed(2) %></div>
+                    <div style="font-size: 0.8em; color: <%= (stock.currentPrice - stock.previousClose) >= 0 ? '#4CAF50' : '#f44336' %>;">
+                        <%= (stock.currentPrice - stock.previousClose) >= 0 ? '▲' : '▼' %>
+                        <%= Math.abs(((stock.currentPrice - stock.previousClose) / stock.previousClose) * 100).toFixed(2) %>%
+                    </div>
+                </div>
+            </a>
+        <% }) %>
+    </div>
+</div>
+
+<!-- Stock List -->
+<div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+    <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 20px; border-bottom: 1px solid #e0e0e0;">
+        <h3 style="margin: 0; color: #2c3e50; display: flex; align-items: center; justify-content: space-between;">
+            <span>
+                <span style="margin-right: 10px;">📈</span>
+                Available Stocks
+                <span style="background: #2196F3; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; margin-left: 15px;">
+                    <%= stocks.length %> stocks
+                </span>
+            </span>
+            <button onclick="refreshPrices()" 
+                    id="refreshBtn"
+                    style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em;">
+                🔄 Refresh Prices
+            </button>
+        </h3>
+    </div>
+
+    <% if (stocks && stocks.length > 0) { %>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 15px 20px; text-align: left; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Symbol</th>
+                        <th style="padding: 15px 20px; text-align: left; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Company</th>
+                        <th style="padding: 15px 20px; text-align: left; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Sector</th>
+                        <th style="padding: 15px 20px; text-align: right; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Price</th>
+                        <th style="padding: 15px 20px; text-align: right; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Change</th>
+                        <th style="padding: 15px 20px; text-align: right; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Volume</th>
+                        <th style="padding: 15px 20px; text-align: center; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #e0e0e0;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% stocks.forEach((stock, index) => { 
+                        const change = stock.currentPrice - stock.previousClose;
+                        const changePercent = (change / stock.previousClose) * 100;
+                    %>
+                        <tr style="<%= index % 2 === 0 ? 'background-color: #fafafa;' : 'background-color: white;' %> transition: background 0.2s;"
+                            onmouseover="this.style.backgroundColor='#e3f2fd'" 
+                            onmouseout="this.style.backgroundColor='<%= index % 2 === 0 ? '#fafafa' : 'white' %>'">
+                            
+                            <td style="padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
+                                <a href="/stocks/stock/<%= stock.symbol %>" 
+                                   style="text-decoration: none; color: #2196F3; font-weight: 700; font-size: 1.1em;">
+                                    <%= stock.symbol %>
+                                </a>
+                            </td>
+                            
+                            <td style="padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
+                                <div style="font-weight: 600; color: #2c3e50;"><%= stock.name.substring(0, 30) %><%= stock.name.length > 30 ? '...' : '' %></div>
+                                <div style="font-size: 0.85em; color: #666;"><%= stock.industry || 'N/A' %></div>
+                            </td>
+                            
+                            <td style="padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
+                                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
+                                    <%= stock.sector %>
+                                </span>
+                            </td>
+                            
+                            <td style="padding: 15px 20px; text-align: right; border-bottom: 1px solid #e0e0e0;">
+                                <div style="font-weight: 700; font-size: 1.1em; color: #2c3e50;">$<%= stock.currentPrice.toFixed(2) %></div>
+                            </td>
+                            
+                            <td style="padding: 15px 20px; text-align: right; border-bottom: 1px solid #e0e0e0;">
+                                <div style="font-weight: 600; color: <%= change >= 0 ? '#4CAF50' : '#f44336' %>;">
+                                    <%= change >= 0 ? '▲' : '▼' %> $<%= Math.abs(change).toFixed(2) %>
+                                </div>
+                                <div style="font-size: 0.85em; color: <%= change >= 0 ? '#4CAF50' : '#f44336' %>;">
+                                    <%= change >= 0 ? '+' : '' %><%= changePercent.toFixed(2) %>%
+                                </div>
+                            </td>
+                            
+                            <td style="padding: 15px 20px; text-align: right; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #666;">
+                                <%= (stock.volume / 1000000).toFixed(2) %>M
+                            </td>
+                            
+                            <td style="padding: 15px 20px; text-align: center; border-bottom: 1px solid #e0e0e0;">
+                                <button onclick="openTradeModal('<%= stock.symbol %>', '<%= stock.name %>', <%= stock.currentPrice %>)" 
+                                        style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 5px;">
+                                    🛒 Trade
+                                </button>
+                                <a href="/stocks/stock/<%= stock.symbol %>" 
+                                   style="display: inline-block; background: #2196F3; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <% if (totalPages > 1) { %>
+            <div style="padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;">
+                <% if (currentPage > 1) { %>
+                    <a href="/stocks/market?page=<%= currentPage - 1 %>&search=<%= search %>&sector=<%= sector %>" 
+                       style="display: inline-block; padding: 8px 16px; background: #e0e0e0; color: #666; text-decoration: none; border-radius: 6px; margin: 0 5px;">
+                        ← Previous
+                    </a>
+                <% } %>
+                
+                <span style="margin: 0 15px; color: #666;">
+                    Page <%= currentPage %> of <%= totalPages %>
+                </span>
+                
+                <% if (currentPage < totalPages) { %>
+                    <a href="/stocks/market?page=<%= currentPage + 1 %>&search=<%= search %>&sector=<%= sector %>" 
+                       style="display: inline-block; padding: 8px 16px; background: #2196F3; color: white; text-decoration: none; border-radius: 6px; margin: 0 5px;">
+                        Next →
+                    </a>
+                <% } %>
+            </div>
+        <% } %>
+
+    <% } else { %>
+        <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 4em; margin-bottom: 20px; opacity: 0.3;">📊</div>
+            <h3 style="color: #2c3e50; margin-bottom: 15px;">No Stocks Found</h3>
+            <p style="color: #666;">Try adjusting your search criteria</p>
+        </div>
+    <% } %>
+</div>
+
+<!-- Trade Modal -->
+<div id="tradeModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 30px; border-radius: 16px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h3 style="margin: 0 0 20px 0; color: #2c3e50; display: flex; align-items: center; justify-content: space-between;">
+            <span>
+                <span style="margin-right: 10px;">🛒</span>
+                Trade Stock
+            </span>
+            <button onclick="closeTradeModal()" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #666;">×</button>
+        </h3>
+        
+        <div id="tradeModalContent">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<script>
+function openTradeModal(symbol, name, price) {
+    const modal = document.getElementById('tradeModal');
+    const content = document.getElementById('tradeModalContent');
+    
+    content.innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="font-size: 1.3em; font-weight: 700; color: #2c3e50; margin-bottom: 5px;">${symbol}</div>
+            <div style="color: #666; margin-bottom: 10px;">${name}</div>
+            <div style="font-size: 1.5em; font-weight: 700; color: #4CAF50;">$${price.toFixed(2)}</div>
+        </div>
+        
+        <form id="tradeForm">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">Select Portfolio</label>
+                <select name="portfolioId" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">
+                    <option value="">Choose a portfolio...</option>
+                    <% portfolios.forEach(p => { %>
+                        <option value="<%= p._id %>"><%= p.name %></option>
+                    <% }) %>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">Trade Type</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label style="display: flex; align-items: center; justify-content: center; padding: 15px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer;" id="buyOption">
+                        <input type="radio" name="type" value="BUY" required style="margin-right: 10px;">
+                        <span style="font-weight: 600; color: #4CAF50;">🛒 BUY</span>
+                    </label>
+                    <label style="display: flex; align-items: center; justify-content: center; padding: 15px; border: 2px solid #e0e0e0; border-radius: 8px; cursor: pointer;" id="sellOption">
+                        <input type="radio" name="type" value="SELL" required style="margin-right: 10px;">
+                        <span style="font-weight: 600; color: #f44336;">💰 SELL</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">Quantity</label>
+                <input type="number" name="qty" required min="1" step="1" placeholder="Number of shares" 
+                       style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em;">
+            </div>
+            
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: #666;">Price per share:</span>
+                    <span style="font-weight: 600;">$${price.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.1em;">
+                    <span style="font-weight: 600; color: #2c3e50;">Estimated Total:</span>
+                    <span style="font-weight: 700; color: #2196F3;" id="estimatedTotal">$0.00</span>
+                </div>
+            </div>
+            
+            <input type="hidden" name="symbol" value="${symbol}">
+            
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" style="flex: 1; background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    Execute Trade
+                </button>
+                <button type="button" onclick="closeTradeModal()" style="padding: 12px 20px; background: #e0e0e0; color: #666; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'flex';
+    
+    // Update total when quantity changes
+    const qtyInput = content.querySelector('input[name="qty"]');
+    qtyInput.addEventListener('input', function() {
+        const total = this.value * price;
+        document.getElementById('estimatedTotal').textContent = '$' + total.toFixed(2);
+    });
+    
+    // Handle form submission
+    document.getElementById('tradeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        
+        try {
+            const response = await fetch('/stocks/trade', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                closeTradeModal();
+                // Optionally refresh the page or update UI
+            } else {
+                alert('Trade failed: ' + result.error);
+            }
+        } catch (error) {
+            alert('Trade failed: ' + error.message);
+        }
+    });
+}
+
+function closeTradeModal() {
+    document.getElementById('tradeModal').style.display = 'none';
+}
+
+function refreshPrices() {
+    const btn = document.getElementById('refreshBtn');
+    btn.innerHTML = '🔄 Refreshing...';
+    btn.disabled = true;
+    
+    // Reload the page after a short delay
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
+
+// Auto-refresh every 30 seconds
+let autoRefreshInterval = setInterval(() => {
+    // Silently refresh in the background
+    fetch('/stocks/market')
+        .then(response => response.text())
+        .then(() => {
+            console.log('Prices updated');
+        })
+        .catch(error => {
+            console.error('Auto-refresh failed:', error);
+        });
+}, 30000);
+
+// Clear interval when leaving page
+window.addEventListener('beforeunload', () => {
+    clearInterval(autoRefreshInterval);
+});
+</script>
+
+<%- include('../layouts/footer') %>
